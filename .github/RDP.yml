@@ -1,0 +1,69 @@
+name: RDP Infinity
+
+on:
+  workflow_dispatch:
+
+jobs:
+  windows-rdp:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Enable RDP
+      run: |
+        # Bật Remote Desktop
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
+        
+        # Mở port 3389
+        netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
+        
+        # Khởi động lại service
+        Restart-Service TermService -Force
+
+    - name: Create User
+      run: |
+        # Tạo user RDP với password đơn giản
+        $password = ConvertTo-SecureString "Rdp@123456" -AsPlainText -Force
+        New-LocalUser -Name "RDPUser" -Password $password -FullName "RDP User"
+        Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
+        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDPUser"
+        
+        # Hiển thị thông tin
+        Write-Host "✅ User created: RDPUser"
+        Write-Host "🔑 Password: Rdp@123456"
+
+    - name: Get Public IP
+      run: |
+        # Lấy IP public
+        $ip = (Invoke-WebRequest -Uri "https://api.ipify.org").Content
+        echo "PUBLIC_IP=$ip" >> $env:GITHUB_ENV
+        Write-Host "🌐 Public IP: $ip"
+
+    - name: Install Chrome
+      run: |
+        # Cài Chrome
+        $chromeUrl = "https://dl.google.com/chrome/install/latest/chrome_installer.exe"
+        $installer = "$env:TEMP\chrome_installer.exe"
+        Invoke-WebRequest -Uri $chromeUrl -OutFile $installer
+        Start-Process -FilePath $installer -Args "/silent /install" -Wait
+        Remove-Item $installer
+
+    - name: Keep Alive Forever
+      run: |
+        Write-Host "=========================================="
+        Write-Host "🖥️  WINDOWS RDP READY - INFINITY"
+        Write-Host "=========================================="
+        Write-Host "IP: $env:PUBLIC_IP"
+        Write-Host "User: RDPUser"
+        Write-Host "Password: Rdp@123456"
+        Write-Host "Port: 3389"
+        Write-Host ""
+        Write-Host "📱 Connect with Microsoft Remote Desktop"
+        Write-Host "=========================================="
+        
+        # Giữ VM chạy vĩnh viễn
+        while ($true) {
+            Write-Host "[$(Get-Date)] RDP is running..."
+            # Giữ activity để không bị timeout
+            Start-Sleep -Seconds 300
+        }
